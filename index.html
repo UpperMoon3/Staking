@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Staking DApp</title>
+</head>
+<body>
+    <h1>Staking DApp</h1>
+    <p>Player Address: <span id="playerAddress"></span></p>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <h2>Stake Tokens</h2>
+    <p>Amount to Stake: <input type="number" id="stakeAmount" placeholder="Enter the amount to stake"></p>
+    <button onclick="stakeTokens()">Stake</button>
+	<p>Your Stake Balance: <span id="stakeBalance"></span></p>
+    <p>Unstake Tokens: <input type="number" id="unstakeAmount" placeholder="Enter the amount to unstake"></p>
+    <button onclick="unstakeTokens()">Unstake</button>
+    <h2>Claim Rewards</h2>
+    <button onclick="claimRewards()">Claim</button>
+	<p>Your Rewards Balance: <span id="rewardsBalance"></span></p>
+    <p>Contract Balance: <span id="contractBalance"></span> ETH</p>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.3.5/web3.min.js"></script>
+    <script>
+        // Initialize Web3.js
+        var web3 = new Web3(Web3.givenProvider);
+
+        // Contract address and ABI (replace with your contract's address and ABI)
+        var contractAddress = '0x625F14a3d29ae5024a2448f1DdD0553505E16A8F';
+        var contractABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "claim",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "allowance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
+				"type": "uint256"
+			}
+		],
+		"name": "ERC20InsufficientAllowance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "balance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
+				"type": "uint256"
+			}
+		],
+		"name": "ERC20InsufficientBalance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "approver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidApprover",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "receiver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidReceiver",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSender",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSpender",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Approval",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "stake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "unstake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "allowance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "decimals",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "staked",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+
+        // Initialize contract instance
+        var contract = new web3.eth.Contract(contractABI, contractAddress);
+
+        // Player's Ethereum address
+        var playerAddress;
+
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    await window.ethereum.enable();
+                    const accounts = await web3.eth.getAccounts();
+                    playerAddress = accounts[0];
+                    updateUI(); // Update UI after connecting wallet
+                    alert('Wallet connected!');
+                } else {
+                    alert('MetaMask not detected. Please install MetaMask and refresh the page.');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('An error occurred while connecting your wallet.');
+            }
+        }
+		async function updateStakeBalance() {
+    try {
+        const stakeBalance = await contract.methods.staked(playerAddress).call();
+        document.getElementById('stakeBalance').textContent = stakeBalance; // Update UI element with the stake balance
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+// Modify your `stakeTokens` function to call `updateStakeBalance` after a successful stake:
+async function stakeTokens() {
+    const stakeAmount = document.getElementById('stakeAmount').value;
+    try {
+        const accounts = await web3.eth.getAccounts();
+        playerAddress = accounts[0];
+        await contract.methods.stake(stakeAmount).send({
+            from: playerAddress,
+        });
+        alert('Staking successful!');
+        updateStakeBalance(); // Update the stake balance in the UI
+    } catch (error) {
+        console.error(error);
+        alert('An error occurred during staking.');
+    }
+}
+
+async function unstakeTokens() {
+    const unstakeAmount = document.getElementById('unstakeAmount').value;
+
+    try {
+        const accounts = await web3.eth.getAccounts();
+        playerAddress = accounts[0];
+        await contract.methods.unstake(unstakeAmount).send({
+            from: playerAddress,
+        });
+        alert('Unstaking successful!');
+        updateStakeBalance(); // Update the stake balance in the UI
+    } catch (error) {
+        console.error(error);
+        alert('An error occurred during unstaking.');
+    }
+}
+
+		
+
+		async function updateRewardsBalance() {
+    try {
+        const rewardsBalance = await contract.methods.balanceOf(playerAddress).call();
+        document.getElementById('rewardsBalance').textContent = rewardsBalance;
+    } catch (error) {
+        console.error(error);
+    }
+}
+        
+async function claimRewards() {
+    try {
+        const accounts = await web3.eth.getAccounts();
+        playerAddress = accounts[0];
+        await contract.methods.claim().send({
+            from: playerAddress,
+        });
+        alert('Claiming rewards successful!');
+        updateRewardsBalance(); // Update the rewards balance in the UI
+    } catch (error) {
+        console.error(error);
+        alert('An error occurred during claiming rewards.');
+    }
+}
+
+
+        // Function to update UI elements
+        function updateUI() {
+            document.getElementById('playerAddress').textContent = playerAddress;
+            // You can add more UI updates as needed, such as displaying contract balance or game status.
+        }
+
+        // Call updateUI initially to set the player's address
+        updateUI();
+    </script>
+</body>
+</html>
+
